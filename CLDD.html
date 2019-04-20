@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script src="./vue.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>CLDD</title>
+</head>
+<body>
+    <div id='app'></div>
+</body>
+</html>
+<script>
+	Vue.component('BaseToBase', {
+		template: `
+			<div class='base-to-base'>
+				<div align='center'>
+					<div>Convert</div> 
+					<div><input type='text' v-model='originalVal' ></div> 
+					<div>base</div> 
+					<div><input type='number' v-model='originalBase'></div>
+					<div>to base</div>
+					<div><input type='number' v-model='newBase'></div>
+					<div class='conversion-table'>
+						<div v-if='conversionObject.tableObject.wholePlaces.length > 0' class='conversion-table-whole'>
+							<div v-for='placeObject in conversionObject.tableObject.wholePlaces' class='conversion-table-place'>
+								<div>{{placeObject.placeValue}}</div>
+								<div>{{conversionObject.originalBase}}<sup>{{placeObject.power}}</sup></div>
+								<div>{{placeObject.rawVal}}</div>
+							</div>
+						</div>
+						<div class='conversion-table-dot'>.</div>
+						<div v-if='conversionObject.tableObject.fractPlaces.length > 0' class='conversion-table-fract'>
+							<div v-for='placeObject in conversionObject.tableObject.fractPlaces' class='conversion-table-place'>
+								<div>{{placeObject.placeValue}}</div>
+								<div>{{conversionObject.originalBase}}<sup>{{placeObject.power}}</sup></div>
+								<div>{{placeObject.rawVal}}</div>
+							</div>
+						</div>
+					</div>
+					<div class='base-10-calculation basicBorder'>
+						<div class='base-10-calculation-header'>Base 10 Calculation</div>
+						<div class='base-10-calculation-body'>
+							<div v-for='placeObject in conversionObject.tableObject.wholePlaces'>{{placeObject.convertedVal}}</div>
+							<div v-for='placeObject in conversionObject.tableObject.fractPlaces'>{{placeObject.convertedVal}}</div>
+						</div>
+						<div class='base-10-calculation-body' style='border-top: 1px solid black'>{{conversionObject.base10form}}</div>
+					</div>
+					<div v-if='conversionObject.newBase != "10"' class='new-base-calculation basicBorder'>
+						<div class='new-base-calculation-header'>Base {{conversionObject.newBase}} Calculation</div>
+						<div>
+							<div v-for='eval in conversionObject.newValComputation.whole'>{{eval}}</div>
+						</div>
+						<div>
+							<div v-for='eval in conversionObject.newValComputation.fract'>{{eval}}</div>
+						</div>
+						<div class='new-base-calculation-result'>{{conversionObject.newVal}}</div>
+					</div>
+				</div>
+			</div>
+		`,
+		data: function(){
+			return{
+				originalVal: '15.25',
+				originalBase: '10',
+				newBase: '2'
+			}
+		},
+		computed: {
+			conversionObject: function(){
+				return this.computeconversionObject(this.originalVal, this.originalBase, this.newBase);
+			}
+		},
+		methods:{
+			computeconversionObject: function(originalVal, originalBase, newBase){
+				var valueObject = {}
+				var wholeSide = ''
+				var fractSide = ''
+				var sides = []
+				if (originalVal.indexOf('.') > -1){
+					sides = originalVal.split('.')
+					wholeSide = sides[0]
+					fractSide = sides[1]
+				}else{
+					wholeSide = originalVal
+				}
+				var tableObject = {
+					wholePlaces: [],
+					fractPlaces: []
+				}
+				for(var index=0; index<wholeSide.length; index++){
+					var placeObject = {}
+					placeObject['power'] = (wholeSide.length - 1) - index
+					placeObject['rawVal'] = wholeSide[index]
+					placeObject['trueVal'] = parseInt(placeObject.rawVal, originalBase)
+					placeObject['placeValue'] = Math.pow(originalBase, placeObject.power)
+					placeObject['convertedVal'] = placeObject.trueVal * placeObject.placeValue
+					console.log(placeObject)
+					tableObject.wholePlaces.push(placeObject)
+				}
+				for(var index=0; index<fractSide.length; index++){
+					var placeObject = {}
+					placeObject['power'] =  -(index+1)
+					placeObject['rawVal'] = fractSide[index]
+					placeObject['trueVal'] = parseInt(placeObject.rawVal, originalBase)
+					placeObject['placeValue'] = Math.pow(originalBase, placeObject.power)
+					placeObject['convertedVal'] = placeObject.trueVal * placeObject.placeValue
+					console.log(placeObject)
+					tableObject.fractPlaces.push(placeObject)
+				}
+				//compute base 10 from
+				var base10form = 0
+				if 
+				(
+				tableObject.wholePlaces.every(place => {return place.trueVal != NaN}) 
+				&& 
+				tableObject.fractPlaces.every(place => {return place.trueVal != NaN})
+				){
+					var wholeSum = 0;
+					var fractSum = 0;
+					if (tableObject.wholePlaces.length > 0){
+						wholeSum = tableObject.wholePlaces.reduce((accumulator, currentValue)=>{
+							return accumulator + currentValue.convertedVal
+						}, 0);
+					}
+					if (tableObject.fractPlaces.length > 0){
+						fractSum = tableObject.fractPlaces.reduce((accumulator, currentValue)=>{
+							return accumulator + currentValue.convertedVal
+						}, 0);
+					}
+					console.log(wholeSum)
+					console.log(fractSum)
+					base10form = (wholeSum + fractSum)
+				}else{
+					base10form = NaN
+				}
+				//
+				//compute new value
+				var base10formSides = []
+				var base10formWholeSide = ''
+				var base10formFractSide = ''
+				var newVal = '0'
+				var newValComputation = {}
+				newValComputation['whole'] = []
+				newValComputation['fract'] = []
+				if (newBase == '10'){
+					newVal = base10form
+				}else{
+					newVal = base10form.toString(newBase)
+					if(base10form.toString().indexOf('.') > -1){
+						base10formSides = base10form.toString().split('.')
+						base10formWholeSide = base10formSides[0]
+						base10formFractSide = base10formSides[1]
+					}else{
+						base10formWholeSide = base10form
+					}
+					//work whole side
+					var quotient = parseInt(base10formWholeSide, 10)
+					var remainder = quotient % newBase
+					while (quotient > 0){
+						var wholeEvalObject = {
+							dividend: quotient,
+							remainder: remainder
+						}
+						newValComputation['whole'].push(wholeEvalObject)
+						quotient = Math.floor(quotient / newBase)
+						remainder = Math.floor(quotient % newBase)
+					}
+					//
+					//work fract side
+					var newValFractLength = 0
+					if (newVal.split('.')[1]){
+						newValFractLength = newVal.split('.')[1].length
+					}
+					var multiplicand = parseFloat(('0.'+base10formFractSide), 10)
+					var result = multiplicand * newBase
+					var fractValue =  parseInt(result, 10)
+					var fractPlaceCount = 0
+					console.log(newValFractLength)
+					while(fractPlaceCount != newValFractLength){
+						fractPlaceCount++
+						var fractEvalObject = {
+							multiplicand: multiplicand,
+							result: result,
+							fractValue: fractValue
+						}
+						newValComputation['fract'].push(fractEvalObject)
+						multiplicand = (result % 1)
+						result = multiplicand * newBase
+						fractValue =  parseInt(result, 10)
+					}
+					//
+				}
+				//
+				valueObject['originalBase'] = originalBase
+				valueObject['originalVal'] = originalVal
+				valueObject['newBase'] = newBase
+				valueObject['base10form'] = base10form
+				valueObject['newVal'] = newVal
+				valueObject['newValComputation'] = newValComputation
+				valueObject['wholeSide'] = wholeSide
+				valueObject['fractSide'] = fractSide
+				valueObject['tableObject'] = tableObject
+				return valueObject
+			}
+		}
+	});
+
+	new Vue({
+		el: '#app',
+		template:`
+			<div class='main-container'>
+				<BaseToBase></BaseToBase>
+			</div>
+		`
+	});
+</script>
+<style>
+	*{
+		box-sizing: border-box;
+	}
+
+	body{
+		margin: 0;
+	}
+
+	.conversion-table{
+		display: grid;
+		grid-template-areas: 
+		'wholeSide dot fractSide';
+	}
+
+	.conversion-table-whole{
+		grid-area: wholeSide;
+		display: grid;
+		grid-auto-flow: column; 
+	}
+
+	.conversion-table-dot{
+		grid-area: dot;
+		display: grid;
+		place-content: center;
+	}
+
+	.conversion-table-fract{
+		grid-area: fractSide;
+		display: grid;
+		grid-auto-flow: column; 
+	}
+
+	.conversion-table-place{
+
+	}
+
+	.main-container{
+		height: 100vh;
+		width: 100vw;
+		padding: 10px;
+	}
+
+	.basicBorder{
+		border: 1px solid black;
+	}
+
+	.base-to-base{
+		display: grid;
+	}
+</style>
